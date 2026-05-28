@@ -1,0 +1,6 @@
+bin/
+uploads/
+*.env
+coverage.out
+coverage.html
+go.sum
