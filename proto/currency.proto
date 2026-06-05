@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package currency;
+
+option go_package = "personal-finance-manager/proto/currency";
+
+service CurrencyService {
+  rpc Convert(ConvertRequest) returns (ConvertResponse);
+  rpc GetRates(GetRatesRequest) returns (GetRatesResponse);
+}
+
+message ConvertRequest {
+  double amount        = 1;
+  string from_currency = 2;
+  string to_currency   = 3;
+}
+
+message ConvertResponse {
+  double converted_amount = 1;
+  double exchange_rate    = 2;
+  string from_currency    = 3;
+  string to_currency      = 4;
+}
+
+message GetRatesRequest {
+  string base_currency = 1;
+}
+
+message GetRatesResponse {
+  string              base_currency = 1;
+  map<string, double> rates         = 2;
+  string              updated_at    = 3;
+}
