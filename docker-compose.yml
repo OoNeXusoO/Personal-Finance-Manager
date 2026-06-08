@@ -1,0 +1,111 @@
+version: "3.9"
+
+networks:
+  pfm-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pfm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       finance
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - pfm-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  currency-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.grpc
+    container_name: pfm-currency
+    restart: unless-stopped
+    environment:
+      GRPC_PORT: "50051"
+    ports:
+      - "50051:50051"
+    networks:
+      - pfm-net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pfm-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      currency-service:
+        condition: service_started
+    environment:
+      DB_HOST:             postgres
+      DB_PORT:             "5432"
+      DB_USER:             postgres
+      DB_PASSWORD:         postgres
+      DB_NAME:             finance
+      DB_SSL_MODE:         disable
+      DB_MAX_OPEN:         "25"
+      DB_MAX_IDLE:         "5"
+      JWT_SECRET:          "super-secret-jwt-key-min-32-characters-long"
+      JWT_EXPIRATION:      "24h"
+      SERVER_PORT:         "8080"
+      SERVER_HOST:         "0.0.0.0"
+      CURRENCY_GRPC_ADDR:  "currency-service:50051"
+      UPLOAD_DIR:          "/uploads"
+      MAX_UPLOAD_SIZE_MB:  "10"
+    volumes:
+      - uploads_data:/uploads
+    ports:
+      - "8080:8080"
+    networks:
+      - pfm-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    image: nginx:alpine
+    container_name: pfm-ui
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+    networks:
+      - pfm-net
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    container_name: pfm-swagger
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /doc/swagger.yaml
+    volumes:
+      - ./api:/doc:ro
+    ports:
+      - "8081:8080"
+    networks:
+      - pfm-net

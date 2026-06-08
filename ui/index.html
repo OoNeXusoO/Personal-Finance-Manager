@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance Manager</title>
+<style>
+:root {
+  --bg:       #0f172a;
+  --surface:  #1e293b;
+  --surface2: #273548;
+  --border:   #334155;
+  --primary:  #6366f1;
+  --primary-h:#4f46e5;
+  --income:   #22c55e;
+  --expense:  #ef4444;
+  --warn:     #f59e0b;
+  --text:     #f1f5f9;
+  --muted:    #94a3b8;
+  --r:        12px;
+  --shadow:   0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;width:100%;font-size:14px;outline:none;transition:.2s}
+input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+button{cursor:pointer;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;transition:.15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--text)}
+.btn-danger{background:transparent;color:var(--expense);border:1px solid var(--expense)}
+.btn-danger:hover{background:var(--expense);color:#fff}
+.btn-sm{padding:6px 12px;font-size:13px}
+
+#auth{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.auth-card{background:var(--surface);border-radius:var(--r);padding:36px;width:100%;max-width:420px;box-shadow:var(--shadow)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo h1{font-size:22px;font-weight:700}
+.auth-logo span{font-size:32px}
+.tabs{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:4px;margin-bottom:24px}
+.tab{flex:1;text-align:center;padding:8px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.2s}
+.tab.active{background:var(--primary);color:#fff}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.auth-error{color:var(--expense);font-size:13px;margin-top:12px;min-height:18px;text-align:center}
+
+#app{display:none;flex-direction:column;min-height:100vh}
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:60px;position:sticky;top:0;z-index:100}
+.nav-brand{font-size:17px;font-weight:700;flex:1}
+.ws-dot{width:9px;height:9px;border-radius:50%;background:var(--border);transition:.3s;flex-shrink:0}
+.ws-dot.connected{background:var(--income);box-shadow:0 0 6px var(--income)}
+.nav-user{font-size:13px;color:var(--muted)}
+
+main{max-width:1100px;margin:0 auto;padding:24px 16px;width:100%}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px}
+.card{background:var(--surface);border-radius:var(--r);padding:22px;border:1px solid var(--border)}
+.card-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.card-value{font-size:28px;font-weight:700}
+.card-value.income{color:var(--income)}
+.card-value.expense{color:var(--expense)}
+.card-value.balance{color:var(--text)}
+.card-currency{font-size:13px;color:var(--muted);margin-top:4px}
+.ws-flash{animation:flash .6s ease}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.4}}
+
+.section{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);margin-bottom:20px}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border)}
+.section-title{font-size:15px;font-weight:700}
+.section-body{padding:20px}
+
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px}
+.type-toggle{display:flex;gap:6px}
+.type-btn{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+.type-btn.income.active{background:var(--income);border-color:var(--income);color:#fff}
+.type-btn.expense.active{background:var(--expense);border-color:var(--expense);color:#fff}
+
+.tx-list{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.05em}
+td{padding:12px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.income{background:rgba(34,197,94,.15);color:var(--income)}
+.badge.expense{background:rgba(239,68,68,.15);color:var(--expense)}
+.amount.income{color:var(--income);font-weight:700}
+.amount.expense{color:var(--expense);font-weight:700}
+.empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+
+.converter-row{display:grid;grid-template-columns:1fr auto 1fr auto;gap:12px;align-items:end}
+.convert-result{margin-top:14px;padding:14px;background:var(--surface2);border-radius:8px;font-size:18px;font-weight:700;text-align:center;min-height:52px}
+
+#toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--income);border-radius:var(--r);padding:14px 20px;font-size:14px;box-shadow:var(--shadow);opacity:0;transform:translateY(12px);transition:.3s;pointer-events:none;z-index:999;max-width:280px}
+#toast.show{opacity:1;transform:translateY(0)}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap}
+.filter-bar select,.filter-bar input{max-width:160px}
+.filter-bar button{white-space:nowrap}
+
+.pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:14px;font-size:13px;color:var(--muted)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--r);padding:28px;width:100%;max-width:500px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:15px;font-weight:700}
+.attach-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.attach-item:last-child{border-bottom:none}
+.attach-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.upload-zone{display:block;background:var(--surface2);border:2px dashed var(--border);border-radius:8px;padding:22px;text-align:center;cursor:pointer;font-size:13px;color:var(--muted);transition:.2s;margin-top:16px}
+.upload-zone:hover{border-color:var(--primary);color:var(--primary)}
+.upload-zone input{display:none}
+</style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span>💰</span>
+      <h1>Finance Manager</h1>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">Logowanie</div>
+      <div class="tab" onclick="switchTab('register')">Rejestracja</div>
+    </div>
+
+    <div id="tab-login">
+      <div class="field"><label>E-mail</label><input id="l-email" type="email" placeholder="jan@example.com"></div>
+      <div class="field"><label>Hasło</label><input id="l-pass" type="password" placeholder="••••••••"></div>
+      <button class="btn-primary" style="width:100%" onclick="doLogin()">Zaloguj się</button>
+      <div class="auth-error" id="l-err"></div>
+    </div>
+
+    <div id="tab-register" style="display:none">
+      <div class="field"><label>Imię i nazwisko</label><input id="r-name" placeholder="Jan Kowalski"></div>
+      <div class="field"><label>E-mail</label><input id="r-email" type="email" placeholder="jan@example.com"></div>
+      <div class="field"><label>Hasło (min. 8 znaków)</label><input id="r-pass" type="password" placeholder="••••••••"></div>
+      <button class="btn-primary" style="width:100%" onclick="doRegister()">Utwórz konto</button>
+      <div class="auth-error" id="r-err"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <nav>
+    <div class="nav-brand">💰 Finance Manager</div>
+    <div class="ws-dot" id="ws-dot" title="WebSocket – aktualizacje w czasie rzeczywistym"></div>
+    <span class="nav-user" id="nav-user"></span>
+    <button class="btn-ghost btn-sm" onclick="doLogout()">Wyloguj</button>
+  </nav>
+
+  <main>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Saldo</div>
+        <div class="card-value balance" id="val-balance">0,00</div>
+        <div class="card-currency" id="val-currency">PLN</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Przychody</div>
+        <div class="card-value income" id="val-income">0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Wydatki</div>
+        <div class="card-value expense" id="val-expense">0,00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Dodaj transakcję</span>
+      </div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="field" style="margin:0">
+            <label>Typ</label>
+            <div class="type-toggle" id="type-toggle">
+              <button class="type-btn income active" onclick="setType('income')">↑ Przychód</button>
+              <button class="type-btn expense" onclick="setType('expense')">↓ Wydatek</button>
+            </div>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Kwota</label>
+            <input id="tx-amount" type="number" step="0.01" min="0.01" placeholder="0,00">
+          </div>
+          <div class="field" style="margin:0">
+            <label>Waluta</label>
+            <select id="tx-currency">
+              <option>PLN</option><option>EUR</option><option>USD</option>
+              <option>GBP</option><option>CHF</option><option>CZK</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Data</label>
+            <input id="tx-date" type="date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field" style="margin:0">
+            <label>Kategoria</label>
+            <select id="tx-category"><option value="">– bez kategorii –</option></select>
+          </div>
+          <div class="field" style="margin:0;grid-column:span 3">
+            <label>Opis</label>
+            <input id="tx-desc" placeholder="np. Zakupy spożywcze">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="addTransaction()">Dodaj</button>
+        <span id="tx-err" style="color:var(--expense);font-size:13px;margin-left:12px"></span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Historia transakcji</span>
+        <div class="filter-bar">
+          <select id="f-type" onchange="loadTransactions()">
+            <option value="">Wszystkie</option>
+            <option value="income">Przychody</option>
+            <option value="expense">Wydatki</option>
+          </select>
+          <input id="f-from" type="date" title="Od daty" onchange="loadTransactions()">
+          <input id="f-to"   type="date" title="Do daty"  onchange="loadTransactions()">
+          <button class="btn-ghost btn-sm" onclick="clearFilters()">Wyczyść</button>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0">
+        <div class="tx-list">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Opis</th><th>Kategoria</th>
+                <th>Typ</th><th style="text-align:right">Kwota</th><th style="text-align:right">Akcje</th>
+              </tr>
+            </thead>
+            <tbody id="tx-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-title">Przelicznik walut</span></div>
+      <div class="section-body">
+        <div class="converter-row">
+          <div class="field" style="margin:0">
+            <label>Kwota</label>
+            <input id="cv-amount" type="number" step="0.01" value="100">
+          </div>
+          <div class="field" style="margin:0">
+            <label>Z</label>
+            <select id="cv-from">
+              <option>PLN</option><option>EUR</option><option>USD</option>
+              <option>GBP</option><option>CHF</option><option>CZK</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>Na</label>
+            <select id="cv-to">
+              <option>EUR</option><option>PLN</option><option>USD</option>
+              <option>GBP</option><option>CHF</option><option>CZK</option>
+            </select>
+          </div>
+          <div style="padding-bottom:2px">
+            <button class="btn-primary" onclick="convertCurrency()">Przelicz</button>
+          </div>
+        </div>
+        <div class="convert-result" id="cv-result">—</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<div id="attach-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📎 Załączniki transakcji</span>
+      <button class="btn-ghost btn-sm" onclick="closeAttachModal()">✕ Zamknij</button>
+    </div>
+    <div id="attach-list" style="min-height:40px"></div>
+    <label class="upload-zone">
+      <input type="file" id="attach-file" accept="image/jpeg,image/png,image/gif,image/webp" onchange="uploadAttachment()">
+      📂 Kliknij aby dodać paragon (jpg, png, gif, webp · maks. 10 MB)
+    </label>
+    <div id="attach-err" style="color:var(--expense);font-size:13px;margin-top:8px;min-height:16px"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = ['3000','5500'].includes(location.port) ? 'http://localhost:8080' : '';
+
+const S = {
+  token:        localStorage.getItem('pfm_token') || '',
+  user:         null,
+  categories:   [],
+  txType:       'income',
+  page:         1,
+  perPage:      15,
+  totalTx:      0,
+  ws:           null,
+  wsRetryTimer: null,
+  currentTxID:  null,
+};
+
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (S.token) opts.headers['Authorization'] = `Bearer ${S.token}`;
+  if (body !== undefined) opts.body = JSON.stringify(body);
+
+  const res = await fetch(API_BASE + path, opts);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+  document.getElementById('tab-login').style.display    = tab === 'login'    ? '' : 'none';
+  document.getElementById('tab-register').style.display = tab === 'register' ? '' : 'none';
+}
+
+async function doLogin() {
+  const email = q('#l-email').value.trim();
+  const password = q('#l-pass').value;
+  q('#l-err').textContent = '';
+  try {
+    const r = await api('POST', '/auth/login', { email, password });
+    S.token = r.data.token;
+    S.user  = r.data.user;
+    localStorage.setItem('pfm_token', S.token);
+    showApp();
+  } catch(e) { q('#l-err').textContent = e.message; }
+}
+
+async function doRegister() {
+  const name = q('#r-name').value.trim();
+  const email = q('#r-email').value.trim();
+  const password = q('#r-pass').value;
+  q('#r-err').textContent = '';
+  try {
+    await api('POST', '/auth/register', { name, email, password });
+    q('#l-email').value = email;
+    q('#l-pass').value  = password;
+    switchTab('login');
+    toast('Konto utworzone – zaloguj się!');
+  } catch(e) { q('#r-err').textContent = e.message; }
+}
+
+function doLogout() {
+  S.token = '';
+  S.user  = null;
+  localStorage.removeItem('pfm_token');
+  if (S.ws) S.ws.close();
+  clearTimeout(S.wsRetryTimer);
+  q('#app').style.display  = 'none';
+  q('#auth').style.display = 'flex';
+}
+
+async function showApp() {
+  q('#auth').style.display = 'none';
+  q('#app').style.display  = 'flex';
+
+  if (!S.user) {
+    try {
+      const r = await api('GET', '/auth/me');
+      S.user = r.data;
+    } catch { }
+  }
+  if (S.user) q('#nav-user').textContent = S.user.name || S.user.email;
+
+  q('#tx-date').value = new Date().toISOString().slice(0, 10);
+
+  await Promise.all([loadBalance(), loadCategories(), loadTransactions()]);
+  connectWS();
+}
+
+if (S.token) showApp().catch(() => {
+  S.token = '';
+  localStorage.removeItem('pfm_token');
+});
+
+async function loadBalance(currency = 'PLN') {
+  try {
+    const r = await api('GET', `/balance?currency=${currency}`);
+    const b = r.data;
+    q('#val-balance').textContent  = fmt(b.balance);
+    q('#val-income').textContent   = fmt(b.income);
+    q('#val-expense').textContent  = fmt(b.expense);
+    q('#val-currency').textContent = b.currency;
+  } catch { }
+}
+
+async function loadCategories() {
+  try {
+    const r = await api('GET', '/categories');
+    S.categories = r.data || [];
+    const sel = q('#tx-category');
+    sel.innerHTML = '<option value="">– bez kategorii –</option>';
+    S.categories.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.name + (c.type === 'income' ? ' ↑' : ' ↓');
+      sel.appendChild(o);
+    });
+  } catch { }
+}
+
+async function loadTransactions() {
+  const type = q('#f-type').value;
+  const from = q('#f-from').value;
+  const to   = q('#f-to').value;
+
+  let url = `/transactions?page=${S.page}&per_page=${S.perPage}`;
+  if (type) url += `&type=${type}`;
+  if (from) url += `&from=${from}`;
+  if (to)   url += `&to=${to}`;
+
+  try {
+    const r = await api('GET', url);
+    S.totalTx = r.meta?.total || 0;
+    renderTransactions(r.data || []);
+    renderPagination();
+  } catch { }
+}
+
+function setType(type) {
+  S.txType = type;
+  q('#type-toggle').querySelectorAll('.type-btn').forEach(b => {
+    b.classList.toggle('active', b.classList.contains(type));
+  });
+}
+
+async function addTransaction() {
+  q('#tx-err').textContent = '';
+  const amount   = parseFloat(q('#tx-amount').value);
+  const currency = q('#tx-currency').value;
+  const date     = q('#tx-date').value;
+  const desc     = q('#tx-desc').value.trim();
+  const catID    = q('#tx-category').value;
+
+  if (!amount || amount <= 0) { q('#tx-err').textContent = 'Podaj kwotę > 0'; return; }
+
+  try {
+    await api('POST', '/transactions', {
+      amount,
+      currency,
+      type:        S.txType,
+      description: desc,
+      date,
+      category_id: catID ? parseInt(catID) : null,
+    });
+    q('#tx-amount').value = '';
+    q('#tx-desc').value   = '';
+    toast('Transakcja dodana!');
+    await Promise.all([loadBalance(), loadTransactions()]);
+  } catch(e) { q('#tx-err').textContent = e.message; }
+}
+
+async function deleteTransaction(id) {
+  if (!confirm('Usunąć tę transakcję?')) return;
+  try {
+    await api('DELETE', `/transactions/${id}`);
+    toast('Transakcja usunięta.');
+    await Promise.all([loadBalance(), loadTransactions()]);
+  } catch(e) { toast('Błąd: ' + e.message, true); }
+}
+
+function clearFilters() {
+  q('#f-type').value = '';
+  q('#f-from').value = '';
+  q('#f-to').value   = '';
+  S.page = 1;
+  loadTransactions();
+}
+
+async function convertCurrency() {
+  const amount = parseFloat(q('#cv-amount').value);
+  const from   = q('#cv-from').value;
+  const to     = q('#cv-to').value;
+  q('#cv-result').textContent = '…';
+  try {
+    const r = await api('GET', `/currency/convert?amount=${amount}&from=${from}&to=${to}`);
+    const d = r.data;
+    q('#cv-result').innerHTML =
+      `<strong>${fmt(d.converted_amount)} ${d.to_currency}</strong>
+       <span style="font-size:13px;color:var(--muted);display:block;margin-top:4px">
+         Kurs: 1 ${d.from_currency} = ${d.exchange_rate} ${d.to_currency}
+       </span>`;
+  } catch(e) { q('#cv-result').textContent = 'Błąd: ' + e.message; }
+}
+
+function renderTransactions(txs) {
+  const tbody = q('#tx-body');
+  if (!txs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Brak transakcji</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = txs.map(t => {
+    const cat  = S.categories.find(c => c.id === t.category_id);
+    const date = new Date(t.date).toLocaleDateString('pl-PL');
+    const sign = t.type === 'income' ? '+' : '−';
+    return `<tr>
+      <td style="color:var(--muted);white-space:nowrap">${date}</td>
+      <td><div>${t.description || '—'}</div></td>
+      <td>${cat ? `<span style="color:${cat.color}">⬤</span> ${cat.name}` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td><span class="badge ${t.type}">${t.type === 'income' ? 'przychód' : 'wydatek'}</span></td>
+      <td style="text-align:right" class="amount ${t.type}">${sign}${fmt(t.amount)} ${t.currency}</td>
+      <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn-ghost btn-sm" onclick="openAttachModal(${t.id})" title="Załączniki / paragony">📎</button>
+        <button class="btn-danger btn-sm" onclick="deleteTransaction(${t.id})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPagination() {
+  const total = S.totalTx;
+  const pages = Math.ceil(total / S.perPage);
+  const pg    = q('#pagination');
+
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+
+  pg.innerHTML = `
+    <span>${total} transakcji</span>
+    <button class="btn-ghost btn-sm" onclick="changePage(-1)" ${S.page<=1?'disabled':''}>‹ Poprz.</button>
+    <span>Strona ${S.page} / ${pages}</span>
+    <button class="btn-ghost btn-sm" onclick="changePage(1)" ${S.page>=pages?'disabled':''}>Nast. ›</button>`;
+}
+
+function changePage(delta) {
+  S.page = Math.max(1, S.page + delta);
+  loadTransactions();
+}
+
+async function openAttachModal(txID) {
+  S.currentTxID = txID;
+  q('#attach-err').textContent = '';
+  q('#attach-file').value = '';
+  q('#attach-modal').style.display = 'flex';
+  await loadAttachments();
+}
+
+function closeAttachModal() {
+  q('#attach-modal').style.display = 'none';
+  S.currentTxID = null;
+}
+
+async function loadAttachments() {
+  const list = q('#attach-list');
+  list.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0">Ładowanie…</p>';
+  try {
+    const r = await api('GET', `/transactions/${S.currentTxID}/attachments`);
+    const items = r.data || [];
+    if (!items.length) {
+      list.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0">Brak załączników dla tej transakcji.</p>';
+      return;
+    }
+    list.innerHTML = items.map(a => `
+      <div class="attach-item">
+        <div>
+          <div style="font-size:13px;font-weight:600">${a.file_name}</div>
+          <div class="attach-meta">${(a.file_size / 1024).toFixed(1)} KB &middot; ${a.content_type}</div>
+        </div>
+        <button class="btn-ghost btn-sm" onclick="downloadAttachment(${a.id}, '${escHtml(a.file_name)}')">⬇ Pobierz</button>
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = `<p style="color:var(--expense);font-size:13px;padding:8px 0">Błąd: ${e.message}</p>`;
+  }
+}
+
+async function uploadAttachment() {
+  const file = q('#attach-file').files[0];
+  if (!file || !S.currentTxID) return;
+
+  q('#attach-err').textContent = '';
+
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowed.includes(file.type)) {
+    q('#attach-err').textContent = 'Dozwolone formaty: jpg, png, gif, webp';
+    return;
+  }
+
+  const form = new FormData();
+  form.append('receipt', file);
+
+  try {
+    const res = await fetch(`${API_BASE}/transactions/${S.currentTxID}/upload`, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${S.token}` },
+      body:    form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    toast('Paragon dodany!');
+    q('#attach-file').value = '';
+    await loadAttachments();
+  } catch(e) {
+    q('#attach-err').textContent = 'Błąd: ' + e.message;
+  }
+}
+
+async function downloadAttachment(attachmentId, fileName) {
+  try {
+    const res = await fetch(`${API_BASE}/attachments/${attachmentId}/download`, {
+      headers: { 'Authorization': `Bearer ${S.token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    toast('Błąd pobierania: ' + e.message, true);
+  }
+}
+
+function connectWS() {
+  if (!S.token) return;
+  const wsUrl = API_BASE
+    ? API_BASE.replace(/^http/, 'ws') + '/ws/balance'
+    : (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/balance';
+
+  S.ws = new WebSocket(wsUrl);
+
+  S.ws.onopen = () => {
+    q('#ws-dot').classList.add('connected');
+    clearTimeout(S.wsRetryTimer);
+  };
+
+  S.ws.onclose = () => {
+    q('#ws-dot').classList.remove('connected');
+    S.wsRetryTimer = setTimeout(connectWS, 5000);
+  };
+
+  S.ws.onerror = () => { S.ws.close(); };
+
+  S.ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'balance_update') {
+        const b = msg.payload;
+        q('#val-balance').textContent  = fmt(b.balance);
+        q('#val-income').textContent   = fmt(b.income);
+        q('#val-expense').textContent  = fmt(b.expense);
+        q('#val-balance').classList.remove('ws-flash');
+        void q('#val-balance').offsetWidth;
+        q('#val-balance').classList.add('ws-flash');
+        toast('Saldo zaktualizowane ⚡');
+      }
+    } catch { }
+  };
+}
+
+function q(sel)   { return document.querySelector(sel); }
+function fmt(n)   { return Number(n).toLocaleString('pl-PL', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+function escHtml(s){ return s.replace(/'/g, "\\'"); }
+
+let toastTimer;
+function toast(msg, isError = false) {
+  const el = q('#toast');
+  el.textContent = msg;
+  el.style.borderColor = isError ? 'var(--expense)' : 'var(--income)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

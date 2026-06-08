@@ -1,0 +1,655 @@
+openapi: "3.0.3"
+info:
+  title: Personal Finance Manager API
+  description: |
+    REST API do zarządzania finansami osobistymi.
+    Autentykacja przez JWT (Bearer token).
+  version: "1.0.0"
+  contact:
+    name: PAW Project
+    email: student@example.com
+
+servers:
+  - url: http://localhost:8080
+    description: Lokalny serwer deweloperski
+  - url: https://api.example.com
+    description: Produkcja
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: auth
+    description: Rejestracja i logowanie
+  - name: transactions
+    description: Transakcje finansowe
+  - name: categories
+    description: Kategorie transakcji
+  - name: currency
+    description: Przelicznik walut (przez gRPC)
+  - name: websocket
+    description: WebSocket – aktualizacje salda w czasie rzeczywistym
+
+paths:
+
+  /health:
+    get:
+      summary: Sprawdź stan serwera
+      security: []
+      responses:
+        "200":
+          description: Serwer działa poprawnie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: ok
+
+  /auth/register:
+    post:
+      summary: Rejestracja nowego użytkownika
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Użytkownik zarejestrowany
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      summary: Logowanie i otrzymanie tokenu JWT
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Poprawne logowanie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataLoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /transactions:
+    get:
+      summary: Lista transakcji zalogowanego użytkownika
+      tags: [transactions]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: category
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+            example: "2026-12-31"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Lista transakcji
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/DataArray"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Transaction"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Utwórz nową transakcję
+      tags: [transactions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransactionRequest"
+      responses:
+        "201":
+          description: Transakcja utworzona
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataTransaction"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+
+    put:
+      summary: Zaktualizuj transakcję
+      tags: [transactions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransactionRequest"
+      responses:
+        "200":
+          description: Transakcja zaktualizowana
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataTransaction"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Usuń transakcję
+      tags: [transactions]
+      responses:
+        "204":
+          description: Transakcja usunięta
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /transactions/{id}/upload:
+    post:
+      summary: Prześlij skan paragonu do transakcji
+      tags: [transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [receipt]
+              properties:
+                receipt:
+                  type: string
+                  format: binary
+                  description: Plik obrazu (jpeg/png/gif/webp, max 10 MB)
+      responses:
+        "201":
+          description: Plik przesłany
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataAttachment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /transactions/{id}/attachments:
+    get:
+      summary: Lista załączników transakcji
+      tags: [transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista załączników
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataAttachmentArray"
+
+  /balance:
+    get:
+      summary: Bieżące saldo użytkownika
+      tags: [transactions]
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: PLN
+      responses:
+        "200":
+          description: Saldo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataBalance"
+
+  /categories:
+    get:
+      summary: Lista kategorii użytkownika
+      tags: [categories]
+      responses:
+        "200":
+          description: Lista kategorii
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataCategoryArray"
+
+    post:
+      summary: Utwórz kategorię
+      tags: [categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: Kategoria utworzona
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataCategory"
+
+  /categories/{id}:
+    delete:
+      summary: Usuń kategorię
+      tags: [categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Kategoria usunięta
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /currency/rates:
+    get:
+      summary: Kursy walut względem waluty bazowej
+      tags: [currency]
+      parameters:
+        - name: base
+          in: query
+          schema:
+            type: string
+            default: PLN
+            example: PLN
+      responses:
+        "200":
+          description: Kursy walut
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataRates"
+
+  /currency/convert:
+    get:
+      summary: Przelicz kwotę między walutami
+      tags: [currency]
+      parameters:
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: number
+            example: 100
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            example: PLN
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            example: EUR
+      responses:
+        "200":
+          description: Wynik przeliczenia
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConvert"
+
+  /ws/balance:
+    get:
+      summary: WebSocket – aktualizacje salda w czasie rzeczywistym
+      tags: [websocket]
+      description: |
+        Uaktualnij połączenie HTTP do WebSocket (Upgrade: websocket).
+        Wymaga tokenu JWT w nagłówku `Authorization: Bearer <token>`.
+
+        Serwer wysyła wiadomości JSON przy każdej zmianie salda:
+        ```json
+        {
+          "type": "balance_update",
+          "payload": {
+            "user_id": 1,
+            "balance": 4739.21,
+            "income": 7700.00,
+            "expense": 2960.79,
+            "currency": "PLN"
+          }
+        }
+        ```
+      responses:
+        "101":
+          description: Switching Protocols – WebSocket
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Niepoprawne dane wejściowe
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Brak lub nieprawidłowy token JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Zasób nie znaleziony
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Konflikt (np. e-mail już istnieje)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "invalid request body"
+
+    # ── Auth ──────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          minLength: 8
+          example: s3cretPwd!
+        name:
+          type: string
+          example: Alice Kowalska
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:          { type: integer }
+        email:       { type: string }
+        name:        { type: string }
+        created_at:  { type: string, format: date-time }
+        updated_at:  { type: string, format: date-time }
+
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:  { $ref: "#/components/schemas/User" }
+
+    DataUser:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/User" }
+
+    DataLoginResponse:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/LoginResponse" }
+
+    # ── Transactions ──────────────────────────────────────
+    Transaction:
+      type: object
+      properties:
+        id:          { type: integer }
+        user_id:     { type: integer }
+        category_id: { type: integer, nullable: true }
+        amount:      { type: number, example: 320.50 }
+        currency:    { type: string, example: PLN }
+        type:        { type: string, enum: [income, expense] }
+        description: { type: string }
+        date:        { type: string, format: date }
+        created_at:  { type: string, format: date-time }
+        updated_at:  { type: string, format: date-time }
+
+    CreateTransactionRequest:
+      type: object
+      required: [amount, type]
+      properties:
+        category_id: { type: integer, nullable: true }
+        amount:      { type: number, minimum: 0.01, example: 320.50 }
+        currency:    { type: string, default: PLN, example: PLN }
+        type:        { type: string, enum: [income, expense] }
+        description: { type: string }
+        date:        { type: string, format: date, example: "2026-05-28" }
+
+    UpdateTransactionRequest:
+      type: object
+      required: [amount, type]
+      properties:
+        category_id: { type: integer, nullable: true }
+        amount:      { type: number, minimum: 0.01 }
+        currency:    { type: string }
+        type:        { type: string, enum: [income, expense] }
+        description: { type: string }
+        date:        { type: string, format: date }
+
+    DataTransaction:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/Transaction" }
+
+    DataArray:
+      type: object
+      properties:
+        data: {}
+        meta:
+          type: object
+          properties:
+            page:     { type: integer }
+            per_page: { type: integer }
+            total:    { type: integer }
+
+    # ── Attachments ───────────────────────────────────────
+    Attachment:
+      type: object
+      properties:
+        id:             { type: integer }
+        transaction_id: { type: integer }
+        user_id:        { type: integer }
+        file_name:      { type: string }
+        file_path:      { type: string }
+        file_size:      { type: integer }
+        content_type:   { type: string }
+        created_at:     { type: string, format: date-time }
+
+    DataAttachment:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/Attachment" }
+
+    DataAttachmentArray:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Attachment" }
+
+    # ── Balance ───────────────────────────────────────────
+    Balance:
+      type: object
+      properties:
+        user_id:  { type: integer }
+        balance:  { type: number }
+        income:   { type: number }
+        expense:  { type: number }
+        currency: { type: string }
+
+    DataBalance:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/Balance" }
+
+    # ── Categories ────────────────────────────────────────
+    Category:
+      type: object
+      properties:
+        id:         { type: integer }
+        user_id:    { type: integer }
+        name:       { type: string }
+        type:       { type: string, enum: [income, expense] }
+        color:      { type: string, example: "#22C55E" }
+        created_at: { type: string, format: date-time }
+
+    CreateCategoryRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:  { type: string, example: Jedzenie }
+        type:  { type: string, enum: [income, expense] }
+        color: { type: string, example: "#EF4444" }
+
+    DataCategory:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/Category" }
+
+    DataCategoryArray:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }
+
+    # ── Currency ──────────────────────────────────────────
+    RatesResponse:
+      type: object
+      properties:
+        base_currency: { type: string }
+        rates:
+          type: object
+          additionalProperties:
+            type: number
+        updated_at: { type: string, format: date-time }
+
+    ConvertResult:
+      type: object
+      properties:
+        converted_amount: { type: number }
+        exchange_rate:    { type: number }
+        from_currency:    { type: string }
+        to_currency:      { type: string }
+
+    DataRates:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/RatesResponse" }
+
+    DataConvert:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/ConvertResult" }
