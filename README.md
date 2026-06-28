@@ -11,8 +11,8 @@ docker compose up --build
 ```
 
 - UI: http://localhost:3000
-- API: http://localhost:8080
-- Swagger: http://localhost:8081
+- API: http://localhost:8087
+- Swagger: http://localhost:8089
 
 ## Testy
 
