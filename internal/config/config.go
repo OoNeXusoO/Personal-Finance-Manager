@@ -34,7 +34,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		ServerPort:  getEnv("SERVER_PORT", "8080"),
+		ServerPort:  getEnv("SERVER_PORT", "8087"),
 		ServerHost:  getEnv("SERVER_HOST", "0.0.0.0"),
 		TLSCertFile: getEnv("TLS_CERT_FILE", ""),
 		TLSKeyFile:  getEnv("TLS_KEY_FILE", ""),
@@ -52,8 +52,8 @@ func Load() *Config {
 		JWTSecret:     getEnv("JWT_SECRET", "change-this-secret-in-production-min-32chars"),
 		JWTExpiration: getEnvDuration("JWT_EXPIRATION", 24*time.Hour),
 
-		GRPCPort:         getEnv("GRPC_PORT", "50051"),
-		CurrencyGRPCAddr: getEnv("CURRENCY_GRPC_ADDR", "localhost:50051"),
+		GRPCPort:         getEnv("GRPC_PORT", "50057"),
+		CurrencyGRPCAddr: getEnv("CURRENCY_GRPC_ADDR", "localhost:50057"),
 
 		UploadDir:     getEnv("UPLOAD_DIR", "./uploads"),
 		MaxUploadSize: int64(getEnvInt("MAX_UPLOAD_SIZE_MB", 10)) * 1024 * 1024,

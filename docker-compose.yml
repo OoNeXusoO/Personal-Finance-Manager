@@ -38,9 +38,9 @@ services:
     container_name: pfm-currency
     restart: unless-stopped
     environment:
-      GRPC_PORT: "50051"
+      GRPC_PORT: "50057"
     ports:
-      - "50051:50051"
+      - "50057:50057"
     networks:
       - pfm-net
 
@@ -66,19 +66,19 @@ services:
       DB_MAX_IDLE:         "5"
       JWT_SECRET:          "super-secret-jwt-key-min-32-characters-long"
       JWT_EXPIRATION:      "24h"
-      SERVER_PORT:         "8080"
+      SERVER_PORT:         "8087"
       SERVER_HOST:         "0.0.0.0"
-      CURRENCY_GRPC_ADDR:  "currency-service:50051"
+      CURRENCY_GRPC_ADDR:  "currency-service:50057"
       UPLOAD_DIR:          "/uploads"
       MAX_UPLOAD_SIZE_MB:  "10"
     volumes:
       - uploads_data:/uploads
     ports:
-      - "8080:8080"
+      - "8087:8087"
     networks:
       - pfm-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,6 +106,6 @@ services:
     volumes:
       - ./api:/doc:ro
     ports:
-      - "8081:8080"
+      - "8089:8080"
     networks:
       - pfm-net

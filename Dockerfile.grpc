@@ -16,6 +16,6 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/bin/grpc-server /grpc-server
 
-EXPOSE 50051
+EXPOSE 50057
 
 ENTRYPOINT ["/grpc-server"]
