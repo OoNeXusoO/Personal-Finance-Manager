@@ -1,5 +1,1 @@
-bin/
-uploads/
 *.env
-coverage.out
-coverage.html
