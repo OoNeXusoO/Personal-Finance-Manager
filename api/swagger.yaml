@@ -10,6 +10,8 @@ info:
     email: student@example.com
 
 servers:
+  - url: http://54.37.232.143:8087
+    description: Serwer produkcyjny
   - url: http://localhost:8080
     description: Lokalny serwer deweloperski
   - url: https://api.example.com
