@@ -72,7 +72,7 @@ services:
     volumes:
       - uploads_data:/uploads
     ports:
-      - "8087:8087"
+      - "127.0.0.1:18087:8087"
     networks:
       - pfm-net
     healthcheck:
@@ -91,7 +91,7 @@ services:
     volumes:
       - ./ui:/usr/share/nginx/html:ro
     ports:
-      - "3000:80"
+      - "127.0.0.1:13000:80"
     networks:
       - pfm-net
 
@@ -104,6 +104,6 @@ services:
     volumes:
       - ./api:/doc:ro
     ports:
-      - "8089:8080"
+      - "127.0.0.1:18089:8080"
     networks:
       - pfm-net
